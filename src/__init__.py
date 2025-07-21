@@ -1,11 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.middleware import ResponseMiddleware, ErrorMiddleware
+from src.middleware.error_middleware import register_error_handlers
 from .router.root_router import root_router
+
 
 class AppFactory:
     def __init__(self, title: str = "VIDEO STREAMING APP", version: str = "1.0.0"):
-        self.app = FastAPI(title=title, version=version)
+        self.app = FastAPI(
+            title=title,
+            version="1.0.0",
+        )
         self.configure_cors()
         self.configure_middlewares()
         self.configure_routes()
@@ -21,8 +25,7 @@ class AppFactory:
         )
 
     def configure_middlewares(self):
-        self.app.add_middleware(ResponseMiddleware)
-        ErrorMiddleware(self.app)
+        register_error_handlers(self.app)
 
     def configure_routes(self):
         @self.app.get("/test")
