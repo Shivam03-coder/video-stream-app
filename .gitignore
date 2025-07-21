@@ -1,0 +1,62 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# FastAPI static/media (optional)
+staticfiles/
+media/
+
+# macOS and system files
+.venv/
+
+# VSCode / IDE config
+.vscode/
+.idea/
+
+# Testing and coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+coverage.*
+.cache
+pytest_cache/
+.pytest_cache/
+
+# Pydantic compiled cache (optional)
+*.pyd
+
+# Logs
+*.log
+
+# Migrations (optional if auto-generated or large)
+migrations/
+
+# SQLite DB (if used locally)
+*.sqlite3
+
+# MyPy / Pylint / Pyright
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Jupyter Notebooks (if you use them)
+.ipynb_checkpoints/
+
+# Build artifacts
+build/
+dist/
+.venv/
+*.egg-info/
+.eggs/
+reload/
