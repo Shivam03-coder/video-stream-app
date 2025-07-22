@@ -4,7 +4,7 @@ import hashlib
 import hmac
 import bcrypt
 from botocore.exceptions import ClientError
-from fastapi import Response
+from fastapi import Cookie, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from src.database.models.user_modle import User
@@ -159,7 +159,42 @@ class AuthService:
             res.set_cookie("access_token", access_token, httponly=True, secure=True)
             res.set_cookie("refresh_token", refresh_token, httponly=True, secure=True)
 
-            return {"message": "User logedin Successfully! Please verify your email!"}
+            return {"message": "User logedin Successfully!"}
+
+        except ClientError as e:
+            message = e.response.get("Error", {}).get(
+                "Message", "Cognito sign-up failed."
+            )
+            raise DatabaseError(message)
+
+    @classmethod
+    async def refresh_token(
+        cls, refresh_token: Cookie(None), user_cognito_id: Cookie(None), res: Response
+    ) -> dict:
+        cls._ensure_client()
+
+        try:
+            response = cls._client.initiate_auth(
+                AuthFlow="REFRESH_TOKEN_AUTH",
+                ClientId=cls._client_id,
+                AuthParameters={
+                    "REFRESH_TOKEN": refresh_token,
+                    "SECRET_HASH": cls._get_secret_hash(),
+                },
+            )
+
+            auth_result = response.get("AuthenticationResult")
+
+            if not auth_result:
+                raise ValidationError("User login failed")
+
+            access_token = auth_result.get("AccessToken")
+            refresh_token = auth_result.get("RefreshToken")
+
+            res.set_cookie("access_token", access_token, httponly=True, secure=True)
+            res.set_cookie("refresh_token", refresh_token, httponly=True, secure=True)
+
+            return {"message": "User Token Refresh Successfully!"}
 
         except ClientError as e:
             message = e.response.get("Error", {}).get(

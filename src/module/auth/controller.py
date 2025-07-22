@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Response
+from fastapi import APIRouter, Cookie, HTTPException, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_session
 from src.module.auth.schema import SignUpRequest, ConfirmSignUpRequest, LoginRequest
@@ -26,3 +26,12 @@ async def register(
     db: AsyncSession = Depends(get_session),
 ):
     return await AuthService.login(user_data, db, res)
+
+
+@auth_router.post("/refresh_token")
+async def register(
+    refresh_token: Cookie(None),
+    user_cognito_id: Cookie(None),
+    res: Response,
+):
+    return await AuthService.refresh_token(refresh_token, user_cognito_id, res)
