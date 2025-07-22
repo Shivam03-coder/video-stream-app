@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.middleware.error_middleware import register_error_handlers
-from .router.root_router import root_router
+from src.core.api import api_routes
+from src.common.logging import configure_logging, LogLevels
 from src.database.engine import db
 from contextlib import asynccontextmanager
 
@@ -9,14 +9,15 @@ from contextlib import asynccontextmanager
 class AppFactory:
     def __init__(self, title: str = "VIDEO STREAMING APP", version: str = "1.0.0"):
         self.app = FastAPI(
-            title=title,
-            version=version,
-            lifespan=self.lifespan_context(),
+            title=title, version=version, lifespan=self.lifespan_context()
         )
+        self.configure_logging()
         self.configure_cors()
-        self.configure_middlewares()
-        self.configure_routes()
-        self.initialize_routes()
+        self.register_routes()
+        self.register_test_routes()
+
+    def configure_logging(self):
+        configure_logging(LogLevels)
 
     def configure_cors(self):
         self.app.add_middleware(
@@ -27,10 +28,11 @@ class AppFactory:
             allow_headers=["*"],
         )
 
-    def configure_middlewares(self):
-        register_error_handlers(self.app)
+    def register_routes(self):
+        for api in api_routes:
+            self.app.include_router(api["router"], prefix=api["route"])
 
-    def configure_routes(self):
+    def register_test_routes(self):
         @self.app.get("/test")
         async def test():
             return {"message": "hello"}
@@ -38,14 +40,6 @@ class AppFactory:
         @self.app.get("/")
         async def root():
             return {"message": "Hello World 🌍"}
-
-    def initialize_routes(self):
-        for route in root_router:
-            self.app.include_router(route["router"], prefix=route["prefix"])
-            print(f"✅ Registered router with prefix: {route['prefix']}")
-
-    def get_app(self) -> FastAPI:
-        return self.app
 
     def lifespan_context(self):
         @asynccontextmanager
@@ -58,5 +52,9 @@ class AppFactory:
 
         return lifespan
 
+    def get_app(self) -> FastAPI:
+        return self.app
 
+
+# Entry point for FastAPI to detect
 app = AppFactory().get_app()
