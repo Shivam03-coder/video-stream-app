@@ -2,11 +2,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
-    POSTGRES_HOST: str
-    POSTGRES_PORT: int
     DATABASE_URL: str
     COGNITO_CLIENT_ID: str
     COGNITO_CLIENT_SECRET: str

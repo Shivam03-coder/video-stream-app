@@ -2,13 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.middleware.error_middleware import register_error_handlers
 from .router.root_router import root_router
+from src.database.engine import db
+from contextlib import asynccontextmanager
 
 
 class AppFactory:
     def __init__(self, title: str = "VIDEO STREAMING APP", version: str = "1.0.0"):
         self.app = FastAPI(
             title=title,
-            version="1.0.0",
+            version=version,
+            lifespan=self.lifespan_context(),
         )
         self.configure_cors()
         self.configure_middlewares()
@@ -43,6 +46,17 @@ class AppFactory:
 
     def get_app(self) -> FastAPI:
         return self.app
+
+    def lifespan_context(self):
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            await db.init()
+            print("✅ Database initialized")
+            yield
+            await db.close()
+            print("✅ Database closed")
+
+        return lifespan
 
 
 app = AppFactory().get_app()
