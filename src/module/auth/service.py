@@ -4,12 +4,19 @@ import hashlib
 import hmac
 import bcrypt
 from botocore.exceptions import ClientError
+from fastapi import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from src.database.models.user_modle import User
-from src.module.auth.schema import SignUpRequest
+from src.module.auth.schema import ConfirmSignUpRequest, SignUpRequest, LoginRequest
 from src.configs.env_config import env
-from src.common.exceptions import BadRequestError, DatabaseError, InternalServerError
+from src.common.exceptions import (
+    BadRequestError,
+    DatabaseError,
+    InternalServerError,
+    NotFoundError,
+    ValidationError,
+)
 
 
 class AuthService:
@@ -18,14 +25,16 @@ class AuthService:
     _client_secret = None
     _region = None
 
-    @staticmethod
-    def _get_secret_hash(username: str, client_id: str, client_secret: str) -> str:
-        message = username + client_id
+    @classmethod
+    def _get_secret_hash(cls, username: str) -> str:
+        message = username + cls._client_id
+
         digest = hmac.new(
-            client_secret.encode("utf-8"),
+            cls._client_secret.encode("utf-8"),
             msg=message.encode("utf-8"),
             digestmod=hashlib.sha256,
         ).digest()
+
         return base64.b64encode(digest).decode("utf-8")
 
     @staticmethod
@@ -55,12 +64,6 @@ class AuthService:
             if existing_user:
                 raise BadRequestError("User already exists")
 
-            secret_hash = cls._get_secret_hash(
-                username=data.email,
-                client_id=cls._client_id,
-                client_secret=cls._client_secret,
-            )
-
             response = cls._client.sign_up(
                 ClientId=cls._client_id,
                 Username=data.email,
@@ -69,7 +72,7 @@ class AuthService:
                     {"Name": "email", "Value": data.email},
                     {"Name": "name", "Value": data.name},
                 ],
-                SecretHash=secret_hash,
+                SecretHash=cls._get_secret_hash(data.email),
             )
 
             cognito_sub = response.get("UserSub")
@@ -92,6 +95,71 @@ class AuthService:
             return {
                 "message": "User Account Created Successfully! Please verify your email!"
             }
+
+        except ClientError as e:
+            message = e.response.get("Error", {}).get(
+                "Message", "Cognito sign-up failed."
+            )
+            raise DatabaseError(message)
+
+    #   ========= VERIFY EMAIL =======
+
+    @classmethod
+    async def verify_email(cls, data: ConfirmSignUpRequest, db: AsyncSession) -> dict:
+        cls._ensure_client()
+
+        try:
+
+            response = cls._client.confirm_sign_up(
+                ClientId=cls._client_id,
+                Username=data.email,
+                ConfirmationCode=data.code,
+                SecretHash=cls._get_secret_hash(data.email),
+            )
+
+            return {"message": "User email confirmed sucessfully"}
+
+        except ClientError as e:
+            message = e.response.get("Error", {}).get(
+                "Message", "Cognito sign-up failed."
+            )
+            raise DatabaseError(message)
+
+    #   ========= LOGIN =======
+
+    @classmethod
+    async def login(cls, data: LoginRequest, db: AsyncSession, res: Response) -> dict:
+        cls._ensure_client()
+
+        try:
+            query = await db.execute(select(User).where(User.email == data.email))
+            existing_user = query.scalars().first()
+
+            if not existing_user:
+                raise NotFoundError("User with this email not found")
+
+            response = cls._client.initiate_auth(
+                AuthFlow="USER_PASSWORD_AUTH",
+                ClientId=cls._client_id,
+                AuthParameters={
+                    "USERNAME": data.email,
+                    "PASSWORD": data.password,
+                    "SECRET_HASH": cls._get_secret_hash(data.email),
+                },
+            )
+
+            auth_result = response.get("AuthenticationResult")
+
+            if not auth_result:
+                raise ValidationError("User login failed")
+
+            access_token = auth_result.get("AccessToken")
+            refresh_token = auth_result.get("RefreshToken")
+
+            res.set_cookie("access_token", access_token, httponly=True, secure=True)
+            res.set_cookie("refresh_token", refresh_token, httponly=True, secure=True)
+
+            return {"message": "User logedin Successfully! Please verify your email!"}
 
         except ClientError as e:
             message = e.response.get("Error", {}).get(
