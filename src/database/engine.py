@@ -24,7 +24,7 @@ class Database:
         return self._SessionLocal()
 
     async def init(self):
-        import src.database.models
+        import src.module
 
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)

@@ -4,7 +4,6 @@ import hashlib
 import hmac
 import bcrypt
 from botocore.exceptions import ClientError
-from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from src.database.models.user_modle import User
@@ -31,7 +30,7 @@ class AuthService:
 
     @staticmethod
     def _hash_password(password: str):
-        return bcrypt.hashpw(password, bcrypt.gensalt())
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     @staticmethod
     def _check_password(password: str, hashed: str):
@@ -87,8 +86,8 @@ class AuthService:
             )
 
             db.add(new_user)
-            db.commit()
-            db.refresh()
+            await db.commit()
+            await db.refresh(new_user)
 
             return {
                 "message": "User Account Created Successfully! Please verify your email!"
