@@ -169,7 +169,10 @@ class AuthService:
 
     @classmethod
     async def refresh_token(
-        cls, refresh_token: Cookie(None), user_cognito_id: Cookie(None), res: Response
+        cls,
+        refresh_token: str = Cookie(None),
+        user_cognito_id: str = Cookie(None),
+        res: Response = None,
     ) -> dict:
         cls._ensure_client()
 
@@ -179,7 +182,7 @@ class AuthService:
                 ClientId=cls._client_id,
                 AuthParameters={
                     "REFRESH_TOKEN": refresh_token,
-                    "SECRET_HASH": cls._get_secret_hash(),
+                    "SECRET_HASH": cls._get_secret_hash(user_cognito_id),
                 },
             )
 
@@ -189,10 +192,7 @@ class AuthService:
                 raise ValidationError("User login failed")
 
             access_token = auth_result.get("AccessToken")
-            refresh_token = auth_result.get("RefreshToken")
-
             res.set_cookie("access_token", access_token, httponly=True, secure=True)
-            res.set_cookie("refresh_token", refresh_token, httponly=True, secure=True)
 
             return {"message": "User Token Refresh Successfully!"}
 

@@ -30,8 +30,8 @@ async def register(
 
 @auth_router.post("/refresh_token")
 async def register(
-    refresh_token: Cookie(None),
-    user_cognito_id: Cookie(None),
-    res: Response,
+    refresh_token: str = Cookie(None),
+    user_cognito_id: str = Cookie(None),
+    res: Response = None,
 ):
     return await AuthService.refresh_token(refresh_token, user_cognito_id, res)
