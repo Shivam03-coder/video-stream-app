@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Cookie, HTTPException, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_session
+from src.middleware.auth_middleware import AuthMiddleware
 from src.module.auth.schema import SignUpRequest, ConfirmSignUpRequest, LoginRequest
 from src.module.auth.service import AuthService
 
@@ -35,3 +36,8 @@ async def register(
     res: Response = None,
 ):
     return await AuthService.refresh_token(refresh_token, user_cognito_id, res)
+
+
+@auth_router.get("/user")
+async def get_user(current_user: dict = Depends(AuthMiddleware.get_current_user)):
+    return {"user": current_user}
